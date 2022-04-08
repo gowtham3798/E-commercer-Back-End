@@ -7,7 +7,7 @@ const app = express();
 app.use(cors())
 app.use(express.json())
 
-const PORT = process.env.PORT
+const PORT = 5000
 
 const MONGO_URL = process.env.MONGO_URL 
 
@@ -53,11 +53,68 @@ app.get('/mobiles',async(req, res) => {
   res.send(result)
 })
 
+app.get('/cart',async(req, res) => {
+  const result = await client.db("e-commerce").collection("cart").find({}).toArray()
+  res.send(result)
+})
+
 app.post('/mobiles',async(req, res) => {
   const data = req.body;
 
   const result = await client.db("e-commerce").collection("mobiles").insertMany(data)
   res.send(result)
+})
+
+app.put('/cart',async(req, res) => {
+  const mobile = req.body;
+  const {type} = req.query;
+
+  const cartItem = await client
+  .db('e-commerce')
+  .collection('cart')
+  .findOne({_id : mobile._id});
+  console.log(cartItem)
+  
+  if(cartItem){
+    if(type === 'decrement' && cartItem.qty <= 1){
+      await client
+      .db('e-commerce')
+      .collection('cart')
+      .deleteOne({_id : mobile._id})
+    }
+    else{
+    await client
+    .db('e-commerce')
+    .collection('cart')
+    .updateOne({_id : mobile._id},{$inc : {qty: type === 'increment' ? +1 : -1 }})
+    }
+  }
+  else {
+    await client
+    .db('e-commerce')
+    .collection('cart')
+    .insertOne({...mobile,qty : 1})
+  }
+
+  const allCart = await client
+  .db('e-commerce')
+  .collection('cart')
+  .find({})
+  .toArray()
+
+  res.send(allCart)
+})
+
+app.post('/checkout', async(req, res) => {
+  const data = req.body;
+  const result = await client.db("e-commerce").collection("cart").deleteMany({})
+  const allCart = await client
+  .db('e-commerce')
+  .collection('cart')
+  .find({})
+  .toArray()
+
+  res.send(allCart)
 })
 
 app.listen(PORT,() => console.log('listening on port 4000'))
